@@ -1,75 +1,54 @@
-## Простой драйвер PostgreSQL (psycopg2 + dotenv)
+# Приложение для бронирования столов
 
-Минимальный независимый sync-драйвер для PostgreSQL. Поддерживает:
+Простое GUI-приложение для управления пользователями, столами и бронированиями в ресторане.
 
-- Подключение из `.env`/ENV через `PG_`-префикс
-- Запросы: `execute`, `fetchone`, `fetchall`
-- Транзакции через контекст-менеджер
-- Режим строк: `dict` (RealDictCursor) или `tuple`
-- `ping()` для проверки доступности БД
+## Запуск
 
-### Установка
+1.  **Клонируйте репозиторий**
 
-```bash
-pip install psycopg2-binary python-dotenv
-```
+2.  **Создайте и активируйте виртуальное окружение**
 
-### Переменные окружения (.env)
+    Для Windows:
+    ```bash
+    python -m venv venv
+    .\venv\Scripts\activate
+    ```
 
-```dotenv
-PG_HOST=localhost
-PG_PORT=5432
-PG_DB=postgres
-PG_USER=postgres
-PG_PASSWORD=postgres
-PG_SSLMODE=disable
-PG_CONNECT_TIMEOUT=10
-PG_ROW_MODE=dict
-```
+    Для macOS/Linux:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
-Поддерживаются также переменные без `.env` — напрямую из окружения.
+3.  **Установите зависимости**
 
-### Быстрый старт
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-```python
-from pg_driver import PGConfig, PGDriver
+4.  **Настройте подключение к базе данных**
 
-cfg = PGConfig.from_env()  # или PGConfig(host="...", dbname="...", user="...", password="...")
-db = PGDriver(cfg)
+    Создайте файл `.env` в корне проекта, скопировав `.env.example`, и укажите свои данные для подключения к PostgreSQL.
 
-# Пинг
-print("db up?", db.ping())
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Затем отредактируйте `.env`:
+    ```dotenv
+    PG_HOST=localhost
+    PG_PORT=5432
+    PG_DB=your_database_name
+    PG_USER=your_username
+    PG_PASSWORD=your_password
+    ```
 
-# Одиночное подключение (autocommit)
-with db.connect() as conn:
-    conn.execute("CREATE TABLE IF NOT EXISTS t (id SERIAL PRIMARY KEY, name TEXT)")
-    print(conn.fetchone("SELECT 1 AS ok"))  # {'ok': 1} при PG_ROW_MODE=dict
+5.  **Запустите приложение**
 
-# Транзакция
-try:
-    with db.transaction() as tx:
-        tx.execute("INSERT INTO t(name) VALUES(%s)", ["alice"])
-        tx.execute("INSERT INTO t(name) VALUES(%s)", ["bob"])
-        rows = tx.fetchall("SELECT id, name FROM t ORDER BY id")
-        print(rows)
-except Exception as e:
-    print("tx failed:", e)
-```
+    При первом запуске приложение автоматически создаст необходимые таблицы в базе данных.
 
-### API кратко
-
-- `PGConfig.from_env(prefix: str = "PG_") -> PGConfig`
-- `PGDriver(config: PGConfig)`
-- `PGDriver.connect() -> contextmanager[_Connection]` — autocommit
-- `PGDriver.transaction() -> contextmanager[_Connection]` — tx (BEGIN/COMMIT/ROLLBACK)
-- `_Connection.execute(sql, params=None) -> int`
-- `_Connection.fetchone(sql, params=None) -> dict|tuple|None`
-- `_Connection.fetchall(sql, params=None) -> list[dict|tuple]`
-- `PGDriver.ping() -> bool`
-
-### Заметки
-
-- Плейсхолдеры параметров — `%s` (особенность psycopg2).
-- Для словарей результатов используйте `PG_ROW_MODE=dict` (по умолчанию).
+    ```bash
+    python app.py
+    ```
 
 
