@@ -1,3 +1,9 @@
+"""
+GUI-приложение для управления бронированиями в ресторане.
+
+Это приложение предоставляет интерфейс для управления пользователями, столами и бронированиями.
+Оно использует tkinter для создания графического интерфейса.
+"""
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -27,10 +33,22 @@ from models.booking import Booking
 
 
 def parse_dt(s: str) -> datetime:
+    """
+    Парсит строку в объект datetime.
+
+    Args:
+        s: Строка с датой и временем в формате "YYYY-MM-DD HH:MM".
+
+    Returns:
+        Объект datetime.
+    """
     return datetime.strptime(s.strip(), "%Y-%m-%d %H:%M")
 
 
 class App(tk.Tk):
+    """
+    Основной класс приложения, который инициализирует главное окно и вкладки.
+    """
     def __init__(self) -> None:
         super().__init__()
         self.title("Бронирование столов")
@@ -49,6 +67,9 @@ class App(tk.Tk):
 
 
 class UsersTab(ttk.Frame):
+    """
+    Вкладка для управления пользователями (создание, обновление, удаление, просмотр).
+    """
     def __init__(self, master: tk.Misc) -> None:
         super().__init__(master)
 
@@ -58,7 +79,6 @@ class UsersTab(ttk.Frame):
         self.var_email = tk.StringVar()
         self.var_full_name = tk.StringVar()
         self.var_phone = tk.StringVar()
-        # упрощено: роль/флаги убраны
 
         ttk.Label(form, text="Email").grid(row=0, column=0, sticky="w")
         ttk.Entry(form, textvariable=self.var_email, width=30).grid(row=0, column=1)
@@ -66,7 +86,6 @@ class UsersTab(ttk.Frame):
         ttk.Entry(form, textvariable=self.var_full_name, width=30).grid(row=1, column=1)
         ttk.Label(form, text="Телефон").grid(row=2, column=0, sticky="w")
         ttk.Entry(form, textvariable=self.var_phone, width=30).grid(row=2, column=1)
-        # пустые строки сохраняем как None
 
         btns = ttk.Frame(form)
         btns.grid(row=3, column=0, columnspan=2, pady=(10, 0))
@@ -99,6 +118,9 @@ class UsersTab(ttk.Frame):
         self.load()
 
     def load(self) -> None:
+        """
+        Загружает и отображает список пользователей в таблице.
+        """
         for i in self.tree.get_children():
             self.tree.delete(i)
         with db.connect() as conn:
@@ -110,6 +132,10 @@ class UsersTab(ttk.Frame):
                 self.tree.insert("", tk.END, values=r)
 
     def on_pick(self, _evt=None) -> None:
+        """
+        Обработчик события выбора пользователя в таблице.
+        Заполняет форму данными выбранного пользователя.
+        """
         item = self.tree.selection()
         if not item:
             return
@@ -122,16 +148,21 @@ class UsersTab(ttk.Frame):
         self.var_email.set(u.email)
         self.var_full_name.set(u.full_name or "")
         self.var_phone.set(u.phone or "")
-        # нет дополнительных полей
 
     def clear_form(self) -> None:
+        """
+        Очищает поля формы и сбрасывает выбор.
+        """
         self._selected_id = None
         self.var_email.set("")
         self.var_full_name.set("")
         self.var_phone.set("")
-        # нет дополнительных полей
 
     def on_create(self) -> None:
+        """
+        Обработчик нажатия кнопки "Создать".
+        Создает нового пользователя с данными из формы.
+        """
         try:
             if not self.var_email.get().strip():
                 messagebox.showerror("Ошибка", "Нужно указать Email")
@@ -152,6 +183,10 @@ class UsersTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_update(self) -> None:
+        """
+        Обработчик нажатия кнопки "Обновить".
+        Обновляет данные выбранного пользователя.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите пользователя")
             return
@@ -171,6 +206,10 @@ class UsersTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_delete(self) -> None:
+        """
+        Обработчик нажатия кнопки "Удалить".
+        Удаляет выбранного пользователя.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите пользователя")
             return
@@ -184,6 +223,9 @@ class UsersTab(ttk.Frame):
 
 
 class TablesTab(ttk.Frame):
+    """
+    Вкладка для управления столами.
+    """
     def __init__(self, master: tk.Misc) -> None:
         super().__init__(master)
 
@@ -244,6 +286,9 @@ class TablesTab(ttk.Frame):
         self.load()
 
     def load(self) -> None:
+        """
+        Загружает и отображает список столов в таблице.
+        """
         for i in self.tree.get_children():
             self.tree.delete(i)
         with db.connect() as conn:
@@ -258,6 +303,10 @@ class TablesTab(ttk.Frame):
                 self.tree.insert("", tk.END, values=r)
 
     def on_pick(self, _evt=None) -> None:
+        """
+        Обработчик события выбора стола в таблице.
+        Заполняет форму данными выбранного стола.
+        """
         item = self.tree.selection()
         if not item:
             return
@@ -274,12 +323,19 @@ class TablesTab(ttk.Frame):
         self.v_notes.set(t.notes or "")
 
     def clear_form(self) -> None:
+        """
+        Очищает поля формы и сбрасывает выбор.
+        """
         self._selected_id = None
         for v in (self.v_number, self.v_capacity, self.v_zone, self.v_notes):
             v.set("")
         self.v_status.set("Активен")
 
     def on_create(self) -> None:
+        """
+        Обработчик нажатия кнопки "Создать".
+        Создает новый стол с данными из формы.
+        """
         try:
             number = int(self.v_number.get())
             capacity = int(self.v_capacity.get())
@@ -301,6 +357,10 @@ class TablesTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_update(self) -> None:
+        """
+        Обработчик нажатия кнопки "Обновить".
+        Обновляет данные выбранного стола.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите стол")
             return
@@ -324,6 +384,10 @@ class TablesTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_delete(self) -> None:
+        """
+        Обработчик нажатия кнопки "Удалить".
+        Удаляет выбранный стол.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите стол")
             return
@@ -337,6 +401,9 @@ class TablesTab(ttk.Frame):
 
 
 class BookingsTab(ttk.Frame):
+    """
+    Вкладка для управления бронированиями.
+    """
     def __init__(self, master: tk.Misc) -> None:
         super().__init__(master)
 
@@ -406,6 +473,9 @@ class BookingsTab(ttk.Frame):
         self.load()
 
     def load(self) -> None:
+        """
+        Загружает и отображает список бронирований в таблице.
+        """
         for i in self.tree.get_children():
             self.tree.delete(i)
         with db.connect() as conn:
@@ -423,6 +493,10 @@ class BookingsTab(ttk.Frame):
                 self.tree.insert("", tk.END, values=r)
 
     def on_pick(self, _evt=None) -> None:
+        """
+        Обработчик события выбора бронирования в таблице.
+        Заполняет форму данными выбранного бронирования.
+        """
         item = self.tree.selection()
         if not item:
             return
@@ -442,6 +516,9 @@ class BookingsTab(ttk.Frame):
         self.v_notes.set(bk.notes or "")
 
     def clear_form(self) -> None:
+        """
+        Очищает поля формы и сбрасывает выбор.
+        """
         self._selected_id = None
         for v in (
             self.v_user_id,
@@ -458,6 +535,10 @@ class BookingsTab(ttk.Frame):
         self.v_status.set("Ожидание")
 
     def on_create(self) -> None:
+        """
+        Обработчик нажатия кнопки "Создать".
+        Создает новое бронирование с данными из формы.
+        """
         try:
             b = Booking(
                 id=None,
@@ -481,6 +562,10 @@ class BookingsTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_update_times(self) -> None:
+        """
+        Обработчик нажатия кнопки "Изменить время".
+        Обновляет время и количество гостей для выбранного бронирования.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите бронирование")
             return
@@ -495,6 +580,10 @@ class BookingsTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_set_status(self) -> None:
+        """
+        Обработчик нажатия кнопки "Изменить статус".
+        Устанавливает новый статус для выбранного бронирования.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите бронирование")
             return
@@ -507,6 +596,10 @@ class BookingsTab(ttk.Frame):
             messagebox.showerror("Ошибка", str(e))
 
     def on_cancel(self) -> None:
+        """
+        Обработчик нажатия кнопки "Отменить".
+        Отменяет выбранное бронирование.
+        """
         if self._selected_id is None:
             messagebox.showerror("Ошибка", "Сначала выберите бронирование")
             return
@@ -520,7 +613,6 @@ class BookingsTab(ttk.Frame):
 
 if __name__ == "__main__":
     try:
-        # Убедиться, что таблицы существуют (на случай первого запуска)
         from backend import create_tables
         create_tables()
     except Exception:

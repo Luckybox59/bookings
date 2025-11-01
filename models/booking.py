@@ -1,10 +1,31 @@
+"""
+Этот модуль определяет модель данных для бронирования.
+"""
 from dataclasses import dataclass
 from typing import Any, Mapping, ClassVar
 from datetime import datetime
 
 @dataclass(frozen=True)
 class Booking:
-    """Доменная модель бронирования (упрощённая)."""
+    """
+    Представляет бронирование стола в ресторане.
+
+    Attributes:
+        __table__: Название таблицы в базе данных.
+        __fkeys__: Внешние ключи для таблицы.
+        id: Уникальный идентификатор бронирования.
+        user_id: ID пользователя, совершившего бронирование.
+        table_id: ID забронированного стола.
+        starts_at: Время начала бронирования.
+        ends_at: Время окончания бронирования.
+        guest_count: Количество гостей.
+        status: Статус бронирования (например, 'Ожидание', 'Подтверждено', 'Отменено').
+        contact_name: Имя контактного лица.
+        contact_phone: Телефон контактного лица.
+        notes: Дополнительные заметки к бронированию.
+        created_at: Время создания записи.
+        updated_at: Время последнего обновления записи.
+    """
     __table__: ClassVar[str] = "bookings"
     __fkeys__: ClassVar[dict[str, tuple[str, str, str]]] = {
         "user_id": ("users", "id", "CASCADE"),
@@ -25,7 +46,15 @@ class Booking:
 
     @staticmethod
     def from_row(row: Mapping[str, Any]) -> "Booking":
-        """Создаёт Booking из строки БД (dict)."""
+        """
+        Создает объект Booking из строки данных, полученной из базы данных.
+
+        Args:
+            row: Словарь с данными строки.
+
+        Returns:
+            Экземпляр класса Booking.
+        """
         return Booking(
             id=row.get("id"),
             user_id=row.get("user_id"),
@@ -42,7 +71,12 @@ class Booking:
         )
 
     def to_insert_params(self) -> tuple[Any, ...]:
-        """Параметры для INSERT."""
+        """
+        Возвращает кортеж параметров для вставки новой записи в базу данных.
+
+        Returns:
+            Кортеж со значениями полей для SQL-запроса INSERT.
+        """
         return (
             self.user_id,
             self.table_id,
@@ -56,7 +90,12 @@ class Booking:
         )
 
     def to_update_params(self) -> tuple[Any, ...]:
-        """Параметры для UPDATE (последний элемент — id)."""
+        """
+        Возвращает кортеж параметров для обновления существующей записи в базе данных.
+
+        Returns:
+            Кортеж со значениями полей для SQL-запроса UPDATE.
+        """
         return (
             self.user_id,
             self.table_id,

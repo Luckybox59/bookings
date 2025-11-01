@@ -1,3 +1,10 @@
+"""
+Драйвер для работы с PostgreSQL.
+
+Этот модуль предоставляет классы для конфигурации, подключения и взаимодействия
+с базой данных PostgreSQL, а также утилиты для автоматического создания таблиц
+на основе dataclass моделей.
+"""
 from __future__ import annotations
 from dataclasses import dataclass, fields, is_dataclass
 from contextlib import contextmanager
@@ -9,33 +16,23 @@ from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 from datetime import datetime, date, time
 import typing as _t
-import types  # <--- ДОБАВЬТЕ ЭТУ СТРОКУ
+import types
 
 
 @dataclass(frozen=True)
 class PGConfig:
-    """Конфигурация подключения к PostgreSQL.
+    """
+    Конфигурация для подключения к базе данных PostgreSQL.
 
-    Значения можно задать через .env или переменные окружения.
-
-    Поля
-    -----
-    host: str
-        Хост PostgreSQL (по умолчанию "localhost").
-    port: int
-        Порт PostgreSQL (по умолчанию 5432).
-    dbname: str
-        Имя базы данных (по умолчанию "postgres").
-    user: str
-        Имя пользователя (по умолчанию "postgres").
-    password: str
-        Пароль пользователя (по умолчанию пустой).
-    sslmode: str | None
-        Режим SSL (например, "require"), по умолчанию None.
-    connect_timeout: int | None
-        Таймаут подключения в секундах (по умолчанию 10).
-    row_mode: str
-        Режим возврата строк: "dict" (RealDictCursor) или "tuple".
+    Attributes:
+        host: Хост базы данных.
+        port: Порт базы данных.
+        dbname: Имя базы данных.
+        user: Имя пользователя.
+        password: Пароль.
+        sslmode: Режим SSL.
+        connect_timeout: Таймаут подключения.
+        row_mode: Режим получения строк ('dict' или 'tuple').
     """
     host: str = "localhost"
     port: int = 5432
@@ -44,24 +41,18 @@ class PGConfig:
     password: str = ""
     sslmode: str | None = None
     connect_timeout: int | None = 10
-    row_mode: str = "dict"  # "dict" | "tuple"
+    row_mode: str = "dict"
 
     @staticmethod
     def from_env(prefix: str = "PG_") -> "PGConfig":
-        """Загружает конфигурацию из .env/ENV с указанным префиксом.
+        """
+        Создает объект PGConfig из переменных окружения.
 
-        Поддерживаемые ключи: HOST, PORT, DB/DBNAME, USER, PASSWORD, SSLMODE,
-        CONNECT_TIMEOUT, ROW_MODE.
+        Args:
+            prefix: Префикс для имен переменных окружения.
 
-        Параметры
-        ---------
-        prefix: str
-            Префикс переменных окружения (по умолчанию "PG_").
-
-        Возвращает
-        -----------
-        PGConfig
-            Экземпляр конфигурации.
+        Returns:
+            Экземпляр PGConfig.
         """
         load_dotenv()
 
@@ -82,60 +73,58 @@ class PGConfig:
 
 
 class _Connection:
-    """Обертка соединения для простых операций.
-
-    Предоставляет методы:
-    - execute: DDL/DML запросы, возвращает число затронутых строк
-    - fetchone: SELECT, возвращает одну строку или None
-    - fetchall: SELECT, возвращает список строк
-
-    Управление транзакциями выполняется на уровне драйвера.
     """
-
+    Обертка над соединением psycopg2 для упрощения выполнения запросов.
+    Не предназначена для прямого использования.
+    """
     def __init__(self, conn: psycopg2.extensions.connection, row_mode: str = "dict") -> None:
         self._conn = conn
         self._row_mode = row_mode
 
     def _cursor_factory(self):
-        """Возвращает подходящий cursor_factory исходя из режима строк.
-
-        Возвращает RealDictCursor для row_mode=="dict", иначе None (курсор по умолчанию).
-        """
+        """Возвращает фабрику курсора в зависимости от row_mode."""
         return RealDictCursor if self._row_mode == "dict" else None
 
     def execute(self, sql: str, params: Sequence[Any] | Mapping[str, Any] | None = None) -> int:
-        """Выполняет DDL/DML запрос (INSERT/UPDATE/DELETE/DDL).
+        """
+        Выполняет SQL-запрос.
 
-        Параметры
-        ---------
-        sql: str
-            Текст SQL с плейсхолдерами %s.
-        params: Sequence | Mapping | None
-            Параметры запроса.
+        Args:
+            sql: Текст SQL-запроса.
+            params: Параметры для запроса.
 
-        Возвращает
-        -----------
-        int
-            Число затронутых строк.
+        Returns:
+            Количество затронутых строк.
         """
         with self._conn.cursor(cursor_factory=self._cursor_factory()) as cur:
             cur.execute(sql, params)
             return cur.rowcount
 
     def fetchone(self, sql: str, params: Sequence[Any] | Mapping[str, Any] | None = None) -> Any | None:
-        """Выполняет SELECT и возвращает одну строку.
+        """
+        Выполняет SQL-запрос и возвращает одну строку результата.
 
-        Формат строки зависит от row_mode: dict (RealDictCursor) или tuple.
-        Возвращает None, если строк нет.
+        Args:
+            sql: Текст SQL-запроса.
+            params: Параметры для запроса.
+
+        Returns:
+            Одна строка результата или None.
         """
         with self._conn.cursor(cursor_factory=self._cursor_factory()) as cur:
             cur.execute(sql, params)
             return cur.fetchone()
 
     def fetchall(self, sql: str, params: Sequence[Any] | Mapping[str, Any] | None = None) -> list[Any]:
-        """Выполняет SELECT и возвращает все строки.
+        """
+        Выполняет SQL-запрос и возвращает все строки результата.
 
-        Формат строк зависит от row_mode: dict (RealDictCursor) или tuple.
+        Args:
+            sql: Текст SQL-запроса.
+            params: Параметры для запроса.
+
+        Returns:
+            Список всех строк результата.
         """
         with self._conn.cursor(cursor_factory=self._cursor_factory()) as cur:
             cur.execute(sql, params)
@@ -153,19 +142,14 @@ class _Connection:
 
 
 class PGDriver:
-    """Простой синхронный драйвер PostgreSQL на psycopg2.
-
-    Предоставляет менеджеры контекста:
-    - connect: одиночное подключение (autocommit=True)
-    - transaction: транзакция (BEGIN/COMMIT/ROLLBACK)
     """
-
+    Основной класс драйвера для работы с PostgreSQL.
+    """
     def __init__(self, config: PGConfig) -> None:
-        """Инициализирует драйвер с заданной конфигурацией."""
         self._cfg = config
 
     def _connect(self) -> psycopg2.extensions.connection:
-        """Создает и возвращает низкоуровневое соединение psycopg2."""
+        """Устанавливает новое соединение с базой данных."""
         kwargs = {
             "host": self._cfg.host,
             "port": self._cfg.port,
@@ -181,9 +165,11 @@ class PGDriver:
 
     @contextmanager
     def connect(self) -> Iterator[_Connection]:
-        """Менеджер контекста одиночного подключения.
+        """
+        Предоставляет контекстный менеджер для одного соединения с автокоммитом.
 
-        Включает autocommit, подходит для отдельных запросов без ручного управления транзакциями.
+        Yields:
+            Объект _Connection.
         """
         conn = self._connect()
         try:
@@ -194,10 +180,12 @@ class PGDriver:
 
     @contextmanager
     def transaction(self) -> Iterator[_Connection]:
-        """Менеджер контекста транзакции.
+        """
+        Предоставляет контекстный менеджер для транзакции.
+        Коммитит при успешном выходе, откатывает при исключении.
 
-        Отключает autocommit, при успешном завершении выполняет COMMIT,
-        при исключении выполняет ROLLBACK.
+        Yields:
+            Объект _Connection.
         """
         conn = self._connect()
         try:
@@ -213,25 +201,31 @@ class PGDriver:
 
     def create_table(self, ddl_sql: str) -> None:
         """
-        Выполняет один DDL-запрос (CREATE TABLE/INDEX/VIEW и т.п.).
-        Работает в autocommit.
+        Создает одну таблицу, выполняя DDL-запрос.
+
+        Args:
+            ddl_sql: SQL-запрос для создания таблицы.
         """
         with self.connect() as conn:
             conn.execute(ddl_sql)
 
     def create_tables(self, ddl_list: list[str]) -> None:
         """
-        Последовательно выполняет список DDL-запросов.
-        Удобно для инициализации схемы.
+        Создает несколько таблиц, выполняя список DDL-запросов.
+
+        Args:
+            ddl_list: Список SQL-запросов для создания таблиц.
         """
         with self.connect() as conn:
             for ddl in ddl_list:
                 conn.execute(ddl)
 
     def ping(self) -> bool:
-        """Проверяет доступность БД запросом SELECT 1.
+        """
+        Проверяет соединение с базой данных.
 
-        Возвращает True при успехе, иначе False.
+        Returns:
+            True, если соединение успешно, иначе False.
         """
         try:
             with self.connect() as c:
@@ -241,16 +235,23 @@ class PGDriver:
             return False
 
     def ensure_model(self, model: type) -> None:
-        """Создаёт таблицу по одной dataclass-модели, если её ещё нет."""
+        """
+        Гарантирует, что для указанной модели существует таблица в БД.
+
+        Args:
+            model: Класс-модель (dataclass).
+        """
         ensure_schema(self, [model])
 
     def ensure_models(self, models: list[type]) -> None:
-        """Создаёт таблицы по нескольким моделям, если их ещё нет."""
+        """
+        Гарантирует, что для всех указанных моделей существуют таблицы в БД.
+
+        Args:
+            models: Список классов-моделей (dataclass).
+        """
         ensure_schema(self, models)
 
-
-
-# ====== Схема: генерация DDL по dataclass-моделям ======
 
 _PY2SQL: dict[type, str] = {
     int: "INT",
@@ -265,11 +266,18 @@ _PY2SQL: dict[type, str] = {
 
 
 def _unwrap_optional(tp: Any) -> tuple[Any, bool]:
-    """Возвращает (базовый_тип, nullable?). Поддерживает Optional[T] / Union[T, None]."""
+    """
+    "Разворачивает" опциональный тип (Union[T, None]) и возвращает базовый тип.
+
+    Args:
+        tp: Тип для проверки.
+
+    Returns:
+        Кортеж (базовый тип, является ли он опциональным).
+    """
     origin = get_origin(tp)
     if origin is None:
         return tp, False
-    # В Python 3.10+ `int | None` это types.UnionType, а не typing.Union
     if origin is _t.Union or origin is types.UnionType:
         args = [a for a in get_args(tp)]
         if type(None) in args:
@@ -279,16 +287,31 @@ def _unwrap_optional(tp: Any) -> tuple[Any, bool]:
 
 
 def _sql_type(py_type: Any) -> str:
-    """Маппинг python-типов в базовый SQL-тип."""
+    """
+    Сопоставляет тип Python с типом SQL.
+
+    Args:
+        py_type: Тип Python.
+
+    Returns:
+        Строка с названием типа SQL.
+    """
     return _PY2SQL.get(py_type, "TEXT")
 
 
 def build_create_table_ddl(model: type) -> str:
-    """Строит простой CREATE TABLE IF NOT EXISTS по dataclass-модели.
+    """
+    Строит SQL DDL для создания таблицы на основе dataclass-модели.
 
-    Требуются атрибуты у модели:
-    - __table__: имя таблицы
-    - __fkeys__: dict[field -> (ref_table, ref_column, on_delete)] (опционально)
+    Args:
+        model: Класс-модель (dataclass).
+
+    Returns:
+        Строка с SQL-запросом CREATE TABLE.
+
+    Raises:
+        TypeError: Если модель не является dataclass.
+        ValueError: Если у модели не определен атрибут __table__.
     """
     if not is_dataclass(model):
         raise TypeError(f"{model} is not a dataclass")
@@ -297,7 +320,6 @@ def build_create_table_ddl(model: type) -> str:
         raise ValueError(f"{model.__name__} has no __table__")
     fkeys: dict[str, tuple[str, str, str]] = getattr(model, "__fkeys__", {}) or {}
 
-    # Резолвим аннотации типов (особенно при from __future__ import annotations)
     try:
         from typing import get_type_hints as _get_type_hints
         type_hints = _get_type_hints(model, include_extras=True)
@@ -305,7 +327,7 @@ def build_create_table_ddl(model: type) -> str:
         type_hints = {}
 
     col_sql: list[str] = []
-    extra_sql: list[str] = []  # CHECK/FOREIGN KEY
+    extra_sql: list[str] = []
 
     for f in fields(model):
         name = f.name
@@ -313,21 +335,17 @@ def build_create_table_ddl(model: type) -> str:
         base_type, nullable = _unwrap_optional(annotated)
         sql_t = _sql_type(base_type)
 
-        # Первичный ключ для id
         if name == "id":
             col_sql.append("id SERIAL PRIMARY KEY")
             continue
 
         parts = [name, sql_t]
-        # по требованию: NOT NULL только для id; остальные поля допускают NULL
 
-        # Наиболее частые дефолты по именам полей
         if name in ("created_at", "updated_at") and sql_t in ("TIMESTAMPTZ",):
             parts.append("DEFAULT now()")
 
         col_sql.append(" ".join(parts))
 
-        # Внешние ключи
         if name in fkeys:
             ref_table, ref_col, on_delete = fkeys[name]
             extra_sql.append(
@@ -340,14 +358,32 @@ def build_create_table_ddl(model: type) -> str:
 
 
 def _dict_get(row: Any, key: str) -> Any:
-    """Безопасно получить значение из результата (dict или tuple)."""
+    """
+    Безопасно извлекает значение из строки результата (словаря или кортежа).
+
+    Args:
+        row: Строка результата.
+        key: Ключ (для словаря).
+
+    Returns:
+        Значение.
+    """
     if isinstance(row, dict):
         return row.get(key)
     return row[0] if row else None
 
 
 def table_exists(driver: "PGDriver", table: str) -> bool:
-    """Проверяет существование таблицы в текущей схеме через to_regclass."""
+    """
+    Проверяет, существует ли таблица в базе данных.
+
+    Args:
+        driver: Экземпляр PGDriver.
+        table: Имя таблицы.
+
+    Returns:
+        True, если таблица существует, иначе False.
+    """
     sql = "SELECT to_regclass(%s) IS NOT NULL AS exists"
     with driver.connect() as c:
         row = c.fetchone(sql, [table])
@@ -356,7 +392,13 @@ def table_exists(driver: "PGDriver", table: str) -> bool:
 
 
 def ensure_schema(driver: "PGDriver", models: list[type]) -> None:
-    """Создаёт отсутствующие таблицы на основе указанных моделей."""
+    """
+    Проверяет существование таблиц для моделей и создает их при необходимости.
+
+    Args:
+        driver: Экземпляр PGDriver.
+        models: Список классов-моделей.
+    """
     ddls: list[str] = []
     for m in models:
         table = getattr(m, "__table__", None)

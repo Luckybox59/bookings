@@ -1,10 +1,27 @@
+"""
+Этот модуль определяет модель данных для стола в ресторане.
+"""
 from dataclasses import dataclass
 from typing import Any, Mapping, ClassVar
 from datetime import datetime
 
 @dataclass(frozen=True)
 class Table:
-    """Доменная модель стола (упрощённая)."""
+    """
+    Представляет стол в ресторане.
+
+    Attributes:
+        __table__: Название таблицы в базе данных.
+        __fkeys__: Внешние ключи для таблицы (в данном случае отсутствуют).
+        id: Уникальный идентификатор стола.
+        number: Номер стола.
+        capacity: Вместимость стола (количество человек).
+        zone: Зона расположения стола (например, 'Основной зал', 'Терраса').
+        status: Статус стола (например, 'Активен', 'На обслуживании').
+        notes: Дополнительные заметки о столе.
+        created_at: Время создания записи.
+        updated_at: Время последнего обновления записи.
+    """
     __table__: ClassVar[str] = "tables"
     __fkeys__: ClassVar[dict[str, tuple[str, str, str]]] = {}
     id: int | None
@@ -18,7 +35,15 @@ class Table:
 
     @staticmethod
     def from_row(row: Mapping[str, Any]) -> "Table":
-        """Создаёт Table из строки БД (dict)."""
+        """
+        Создает объект Table из строки данных, полученной из базы данных.
+
+        Args:
+            row: Словарь с данными строки.
+
+        Returns:
+            Экземпляр класса Table.
+        """
         return Table(
             id=row.get("id"),
             number=row.get("number"),
@@ -31,7 +56,12 @@ class Table:
         )
 
     def to_insert_params(self) -> tuple[Any, ...]:
-        """Параметры для INSERT."""
+        """
+        Возвращает кортеж параметров для вставки новой записи в базу данных.
+
+        Returns:
+            Кортеж со значениями полей для SQL-запроса INSERT.
+        """
         return (
             self.number,
             self.capacity,
@@ -41,7 +71,12 @@ class Table:
         )
 
     def to_update_params(self) -> tuple[Any, ...]:
-        """Параметры для UPDATE (последний элемент — id)."""
+        """
+        Возвращает кортеж параметров для обновления существующей записи в базе данных.
+
+        Returns:
+            Кортеж со значениями полей для SQL-запроса UPDATE.
+        """
         return (
             self.number,
             self.capacity,
